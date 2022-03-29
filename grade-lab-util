@@ -82,5 +82,5 @@ def test_xargs():
 @test(1, "time")
 def test_time():
     check_time()
-    
+
 run_tests()
