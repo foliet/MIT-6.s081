@@ -16,7 +16,7 @@ main() {
         close(p2[1]);
         char* buffer = malloc(2);
         read(p1[1],buffer,sizeof(buffer));
-        printf("%d: received ping\n",getpid());
+        fprintf(2,"%d: received ping\n",getpid());
         write(p2[0],buffer,sizeof(buffer));
         exit(0);
     }
@@ -25,8 +25,9 @@ main() {
     close(p2[0]);
     char buffer[] = {'x'};
     read(p1[0],buffer,sizeof(buffer));
-    printf("%d: received pong\n",getpid());
+    fprintf(2,"%d: received pong\n",getpid());
     write(p2[1],buffer,sizeof(buffer));
+    wait(0);
     exit(0);
 }
 
