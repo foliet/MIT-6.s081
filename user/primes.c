@@ -20,6 +20,7 @@ int main() {
         printf("prime %d\n", prime);
         if (read(p1[0], &n, sizeof(n)) && n) {
             if (fork() == 0) {
+                //子进程会复制一遍父进程的两个管道，其中父进程用来与祖父进程交流的管道应该被关闭
                 close(p1[0]);
                 close(p1[1]);
                 p1[0] = p2[0];
@@ -32,6 +33,7 @@ int main() {
             } while (read(p1[0], &n, sizeof(n)) && n);
             write(p2[1], &n, sizeof(n));
         }
+        //关闭占用的管道
         close(p1[0]);
         close(p1[1]);
         close(p2[0]);

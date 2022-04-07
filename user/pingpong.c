@@ -14,15 +14,18 @@ main() {
         //child
         char buffer[] = {'y'};
         read(p1[0], buffer, sizeof(buffer));
-        fprintf(2, "%d: received ping\n", getpid());
+        printf("%d: received ping\n", getpid());
         write(p2[1], buffer, sizeof(buffer));
-        exit(0);
+    } else {
+        //parent
+        char buffer[] = {'x'};
+        write(p1[1], buffer, sizeof(buffer));
+        read(p2[0], buffer, sizeof(buffer));
+        printf("%d: received pong\n", getpid());
     }
-    //parent
-    char buffer[] = {'x'};
-    write(p1[1], buffer, sizeof(buffer));
-    wait(0);
-    read(p2[0], buffer, sizeof(buffer));
-    fprintf(2, "%d: received pong\n", getpid());
+    close(p1[0]);
+    close(p1[1]);
+    close(p2[0]);
+    close(p2[1]);
     exit(0);
 }
