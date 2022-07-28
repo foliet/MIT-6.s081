@@ -455,3 +455,10 @@ vmprint(pagetable_t pagetable){
         }
     }
 }
+
+uint64 walkpte(pagetable_t pagetable, uint64 va)
+{
+    if(va >= MAXVA)
+        return 0;
+    return (uint64)walk(pagetable, va, 0);
+}
