@@ -432,3 +432,26 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+char* exp[] = {
+        ".. .. ..%d: pte %p pa %p\n",
+        ".. ..%d: pte %p pa %p\n",
+        "..%d: pte %p pa %p\n"
+};
+
+void
+vmprint(pagetable_t pagetable){
+    static int level = 2;
+    if(level == 2)
+        printf("page table %p\n", pagetable);
+    for(int i = 0; i < 512; i++){
+        pte_t pte = pagetable[i];
+        if(pte & PTE_V && level >= 0){
+            pagetable_t child = (pagetable_t)PTE2PA((uint64)pte);
+            printf(exp[level], i, pte, child);
+            level--;
+            vmprint(child);
+            level++;
+        }
+    }
+}
