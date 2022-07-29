@@ -1,0 +1,4 @@
+Q: Which other xv6 system call(s) could be made faster using this shared page? Explain how.
+A: 在实验二中实现的系统调用trace可以采用共享内存的方式加速。再映射一块用户进程可以读和写的页，将trace储存在这个区域内，当执行系统调用trace时，只需要直接修改共享页面的内容就可以了，避免陷入内核态的开销。
+Q: Explain the output of vmprint in terms of Fig 3-4 from the text. What does page 0 contain? What is in page 2? When running in user mode, could the process read/write the memory mapped by page 1? What does the third to last page contain?
+A: 第0页为程序代码段和数据段；第2页为用户栈；第1页是守护页，flag的U位为0，所以用户进程不能访问；倒数第三页是usyscall区域，包含pid。
