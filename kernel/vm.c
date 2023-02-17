@@ -15,6 +15,8 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
 
+uint ref[PHYSTOP/PGSIZE];
+
 // Make a direct-map page table for the kernel.
 pagetable_t
 kvmmake(void)
@@ -53,6 +55,7 @@ kvmmake(void)
 void
 kvminit(void)
 {
+  memset(ref, 0, sizeof(ref));
   kernel_pagetable = kvmmake();
 }
 
@@ -151,6 +154,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
     if(*pte & PTE_V)
       panic("mappages: remap");
     *pte = PA2PTE(pa) | perm | PTE_V;
+    ref[pa/PGSIZE]++;
     if(a == last)
       break;
     a += PGSIZE;
@@ -178,8 +182,9 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: not mapped");
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
-    if(do_free){
-      uint64 pa = PTE2PA(*pte);
+    uint64 pa = PTE2PA(*pte);
+    ref[pa/PGSIZE]--;
+    if(do_free && ref[pa/PGSIZE] == 1){
       kfree((void*)pa);
     }
     *pte = 0;
@@ -302,8 +307,6 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
   uint64 pa, i;
-  uint flags;
-  char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -311,12 +314,9 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    *pte &= ~PTE_W;
+    *pte |= PTE_COW;
+    if(mappages(new, i, PGSIZE, (uint64)pa, PTE_FLAGS(*pte)) != 0){
       goto err;
     }
   }
@@ -346,13 +346,33 @@ uvmclear(pagetable_t pagetable, uint64 va)
 int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
+  pte_t *pte;
   uint64 n, va0, pa0;
 
   while(len > 0){
-    va0 = PGROUNDDOWN(dstva);
-    pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
+    if((pa0 = walkaddr(pagetable, dstva)) == 0)
       return -1;
+    va0 = PGROUNDDOWN(dstva);
+    pte = walk(pagetable, va0, 0);
+    if(pte == 0)
+      return -1;
+
+    if(!(*pte & PTE_W) && *pte & PTE_COW) {
+      *pte |= PTE_W;
+      *pte &= ~PTE_COW;
+      if(ref[pa0/PGSIZE] > 2){
+        char *mem;
+        if ((mem = kalloc()) == 0)
+          exit(-1);
+        memmove(mem, (char *) pa0, PGSIZE);
+        ref[pa0/PGSIZE]--;
+        ref[(uint64)mem/PGSIZE]++;
+        int flag = PTE_FLAGS(*pte);
+        *pte = PA2PTE(mem) | flag;
+        pa0 = (uint64)mem;
+      }
+    }
+
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
