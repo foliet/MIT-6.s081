@@ -67,7 +67,7 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if(r_scause() == 15) {
+  } else if(r_scause() == 13 || r_scause() == 15) {
     // 发生page fault，获取访问地址
     uint64 va = PGROUNDDOWN(r_stval()), pa;
     if((pa = walkaddr(p->pagetable, va)) == 0)
